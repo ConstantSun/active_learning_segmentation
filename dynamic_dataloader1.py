@@ -1,46 +1,78 @@
+from os.path import splitext
+from os import listdir
+import numpy as np
+from glob import glob
 import torch
-from torch.utils.data import DataLoader
-from torchvision import transforms
-import torchvision.datasets as datasets
-import matplotlib.pyplot as plt
+from torch.utils.data import Dataset
+import logging
+from PIL import Image
 
 
-# a simple custom collate function, just to show the idea
-def my_collate(batch):
-    data = [item[0] for item in batch]
-    target = [item[1] for item in batch]
-    target = torch.LongTensor(target)
-    return [data, target]
+class RestrictedDataset(Dataset):
+    def __init__(self, imgs_dir: str, masks_dir: str, selected_id_images: list, train=False, scale=1, mask_suffix=''):
+        """
+        imgs_dir: image directory
+        masks_dir: mask directory
+        selected_id_images: list of image names in data pooling (the selected images)
+        """
+        self.imgs_dir = imgs_dir
+        self.masks_dir = masks_dir
+        self.scale = scale
+        self.mask_suffix = mask_suffix
+        assert 0 < scale <= 1, 'Scale must be between 0 and 1'
 
+        # # self.ids: contains image name, e.g:  GEMS_IMG__2010_MAR__12__HA122541__F8HB4A50_24
+        # self.ids = [splitext(file)[0] for file in listdir(imgs_dir)
+        #             if not file.startswith('.')]
 
-def show_image_batch(img_list, title=None):
-    num = len(img_list)
-    fig = plt.figure()
-    for i in range(num):
-        ax = fig.add_subplot(1, num, i + 1)
-        ax.imshow(img_list[i].numpy().transpose([1, 2, 0]))
-        ax.set_title(title[i])
-    plt.show()
+        # Active learning:
+        # Updating selected image for the next training phase:
+        self.ids = selected_id_images
 
+        logging.info(f'Creating dataset with {len(self.ids)} examples')
 
-#  do not do randomCrop to show that the custom collate_fn can handle images of different size
-train_transforms = transforms.Compose([
-                                    # transforms.Scale(size=224),
-                                    transforms.ToTensor(),
-                                       ])
+    def __len__(self):
+        return len(self.ids)
 
-# change root to valid dir in your system, see ImageFolder documentation for more info
-train_dataset = datasets.ImageFolder(root="/data.local/all/hangd/dynamic_data/",
-                                     transform=train_transforms)
+    @classmethod
+    def preprocess(cls, pil_img, scale):
+        pil_img = pil_img.resize((256, 256))
+        img_nd = np.array(pil_img)
 
-trainset = DataLoader(dataset=train_dataset,
-                      batch_size=4,
-                      shuffle=True,
-                      collate_fn=my_collate,  # use custom collate function here
-                      pin_memory=True)
+        if len(img_nd.shape) == 2:
+            img_nd = np.expand_dims(img_nd, axis=2)
 
-trainiter = iter(trainset)
-imgs, labels = trainiter.next()
+        # HWC to CHW
+        img_trans = img_nd.transpose((2, 0, 1))
+        if img_trans.max() > 1:
+            img_trans = img_trans / 255.0
 
-# print(type(imgs), type(labels))
-show_image_batch(imgs, title=[train_dataset.classes[x] for x in labels])
+        return img_trans
+
+    def __getitem__(self, i):
+        idx = self.ids[i]
+        mask_file = glob(self.masks_dir + idx + self.mask_suffix + '.*')
+        img_file = glob(self.imgs_dir + idx + '.*')
+        # print("\n\nindex i: ", i)
+        # print("self.ids: ", self.ids[i])
+        # print("mask file: ", mask_file)
+        # print("img_file: ", img_file)
+
+        assert len(mask_file) == 1, \
+            f'Either no mask or multiple masks found for the ID {idx}: {mask_file}'
+        assert len(img_file) == 1, \
+            f'Either no image or multiple images found for the ID {idx}: {img_file}'
+        mask = Image.open(mask_file[0])
+        img = Image.open(img_file[0])
+
+        assert img.size == mask.size, \
+            f'Image and mask {idx} should be the same size, but are {img.size} and {mask.size}'
+
+        img = self.preprocess(img, self.scale)
+        mask = self.preprocess(mask, self.scale)
+
+        return {
+            'image': torch.from_numpy(img).type(torch.FloatTensor),
+            'mask': torch.from_numpy(mask).type(torch.FloatTensor),
+            'id': self.ids[i]
+        }

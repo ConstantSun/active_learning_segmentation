@@ -1,6 +1,8 @@
 import numpy as np
 import torch
+from os.path import splitext
 from matplotlib import pyplot as plt
+from os import listdir
 
 
 # a = np.arange(25).reshape(5, 5)
@@ -38,15 +40,26 @@ print("e: ", e)
 # plt.savefig("/data.local/all/hangd/v1/uncertainty1/save_plot1.png")
 
 a = torch.arange(6).reshape((2, 3))
-print("before: ", a, "shape: ", a.shape)
+# print("before: ", a, "shape: ", a.shape)
 a = a.unsqueeze(1)
-print("after: ", a, "shape: ", a.shape)
+# print("after: ", a, "shape: ", a.shape)
 
 a = (a>3).float()
-print("a ", a)
+# print("a ", a)
 
 
 a = np.log10(0.001)
 b = np.log2(0.001)
-print("a: " , a)
-print("b: ", b)
+# print("a: " , a)
+# print("b: ", b)
+
+imgs_dir = "/data.local/all/hangd/dynamic_data/imgs/"
+[splitext(file)[0] for file in listdir(imgs_dir)
+                    if not file.startswith('.')]
+
+for file in listdir(imgs_dir):
+    print(splitext(file))
+    print("file: ", file)
+    break
+
+
