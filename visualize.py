@@ -103,4 +103,3 @@ def visualize_to_tensorboard(test_loader, train_loader_un_shuffle, writer, devic
             # elif set_idx == 2:
             #     writer.add_images(f'val/blue_mean___yellow_var_pred___red_GT_{inx}_{batch_idx}', _total_list, epoch)
 
-# def extract_bound()

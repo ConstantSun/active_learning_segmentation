@@ -46,7 +46,7 @@ class BasicDataset(Dataset):
     def __getitem__(self, i):
 
         idx = self.ids[i]
-        mask_file = glob(self.masks_dir + idx + self.mask_suffix + '.*')
+        mask_file = glob(self.masks_dir + idx + '.*')
         img_file = glob(self.imgs_dir + idx + '.*')
         # print("\n\nindex i: ", i)
         # print("self.ids: ", self.ids[i])

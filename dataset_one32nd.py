@@ -6,26 +6,15 @@ import torch
 from torch.utils.data import Dataset
 import logging
 from PIL import Image
+from fetch_data_for_next_phase import get_pool_data
 
 
-class RestrictedDataset(Dataset):
-    def __init__(self, imgs_dir: str, masks_dir: str, selected_id_images: list, train=False):
-        """
-        imgs_dir: image directory
-        masks_dir: mask directory
-        selected_id_images: list of image names in data pooling (the selected images)
-        """
+class BasicDataset(Dataset):
+    def __init__(self, imgs_dir, masks_dir, train=False):
         self.imgs_dir = imgs_dir
         self.masks_dir = masks_dir
-
-        # # self.ids: contains image name, e.g:  GEMS_IMG__2010_MAR__12__HA122541__F8HB4A50_24
-        # self.ids = [splitext(file)[0] for file in listdir(imgs_dir)
-        #             if not file.startswith('.')]
-
-        # Active learning:
-        # Updating selected image for the next training phase:
-        self.ids = selected_id_images
-
+        self.ids = get_pool_data("data_one32nd_std.json")
+        # print("\n\nInitialized .....\nID: \n", self.ids)
         logging.info(f'Creating dataset with {len(self.ids)} examples')
 
     def __len__(self):
@@ -47,16 +36,13 @@ class RestrictedDataset(Dataset):
         return img_trans
 
     def __getitem__(self, i):
-        idx = self.ids[i]
-        # print("self.masks_dir: ", self.masks_dir)
-        # print("idx: ", idx)
-        # print("mask file: ", self.masks_dir + idx  + '.*')
-        mask_file = glob(self.masks_dir + idx  + '.*')
-        img_file = glob(self.imgs_dir + idx + '.*')
 
-        # print("\n\nidx: ", i)
+        idx = self.ids[i]
+        mask_file = glob(self.masks_dir + idx + '.*')
+        img_file = glob(self.imgs_dir + idx + '.*')
+        # print("\n\nindex i: ", i)
         # print("self.ids: ", self.ids[i])
-        # print("mask_file: ", mask_file)
+        # print("mask file: ", mask_file)
         # print("img_file: ", img_file)
 
         assert len(mask_file) == 1, \
@@ -74,6 +60,5 @@ class RestrictedDataset(Dataset):
 
         return {
             'image': torch.from_numpy(img).type(torch.FloatTensor),
-            'mask': torch.from_numpy(mask).type(torch.FloatTensor),
-            'id': self.ids[i]
+            'mask': torch.from_numpy(mask).type(torch.FloatTensor)
         }

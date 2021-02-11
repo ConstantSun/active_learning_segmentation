@@ -66,3 +66,14 @@ Test IOU : 0.7689835814678151
 Epoch 7/30: 100%|███████| 672/672 [01:01<00:00, 10.86img/s, loss (batch)=0.0981]
 INFO: Checkpoint 7 saved !
 
+----------------
+10/2
+When selecting next data :
+ - using add_img_to_pool with filename="data_one32nd"
+ - re-writing dataset loader
+ Mean:  tensor(-4.2677, device='cuda:0')
+std:  tensor(0.1414, device='cuda:0')
+
+
+Mean:  tensor(-4.2683, device='cuda:0')
+std:  tensor(0.1393, device='cuda:0')

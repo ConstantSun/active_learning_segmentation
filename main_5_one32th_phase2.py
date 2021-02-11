@@ -22,10 +22,9 @@ from eval import eval_net
 from visualize import visualize_to_tensorboard
 
 from torch.utils.tensorboard import SummaryWriter
-from dataset import BasicDataset
+from dataset_one32nd import BasicDataset
 from torch.utils.data import DataLoader, random_split
-import segmentation_models_pytorch as smp
-
+import dataset as general_dataset
 global val_iou_score
 global best_val_iou_score
 global best_test_iou_score
@@ -35,8 +34,8 @@ best_val_iou_score = 0.
 best_test_iou_score = 0.
 
 # ailab
-dir_img = "/data.local/all/hangd/dynamic_data/one32rd/imgs/"
-dir_mask = "/data.local/all/hangd/dynamic_data/one32rd/masks/"
+dir_img = "/data.local/all/hangd/dynamic_data/full/data/imgs/"
+dir_mask = "/data.local/all/hangd/dynamic_data/full/data/masks/"
 
 dir_img_test = '/data.local/all/hangd/src_code_3/Pytorch-UNet/data_test/imgs/'
 dir_mask_test = '/data.local/all/hangd/src_code_3/Pytorch-UNet/data_test/masks/'
@@ -71,13 +70,13 @@ def train_net(
     logging.info(f'Model loaded from {args.load}')
 
     dataset = BasicDataset(dir_img, dir_mask, img_scale)
-    data_test = BasicDataset(imgs_dir=dir_img_test, masks_dir=dir_mask_test, train=False, scale=img_scale)
+    data_test = general_dataset.BasicDataset(imgs_dir=dir_img_test, masks_dir=dir_mask_test, train=False)
 
     batch_size = 4
     train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True)
     test_loader = DataLoader(data_test, batch_size=batch_size, shuffle=False, num_workers=2, pin_memory=True,drop_last=True)
     lr = 1e-5
-    writer = SummaryWriter(comment=f'_{net.__class__.__name__}_LR_{lr}_BS_{batch_size}_SCALE_{img_scale}')
+    writer = SummaryWriter(comment=f'_{net.__class__.__name__}_LR_{lr}_BS_{batch_size}')
     global_step = 0
 
     logging.info(f'''Starting training:
