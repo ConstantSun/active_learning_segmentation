@@ -22,20 +22,61 @@ from visualize import visualize_to_tensorboard
 from torch.utils.tensorboard import SummaryWriter
 from dynamic_dataloader import RestrictedDataset
 from torch.utils.data import DataLoader, random_split
-from std_metric import get_segmentation_mask_uncertainty
+
 import json
 from dataset import BasicDataset
-
+from std_metric import get_segmentation_mask_uncertainty
+from acquisition_function import mean_first_entropy, category_first_entropy, mutual_information
 
 # ailab
-dir_img = "/data.local/all/hangd/dynamic_data/one32rd/imgs/"
-dir_mask = '/data.local/all/hangd/dynamic_data/one32rd/masks/'
+dir_img = "/data.local/all/hangd/dynamic_data/full/data/imgs/"
+dir_mask = '/data.local/all/hangd/dynamic_data/full/data/masks/'
 
 dir_img_test = '/data.local/all/hangd/dynamic_data/full/data_test/imgs/'
 dir_mask_test = '/data.local/all/hangd/dynamic_data/full/data_test/masks/'
 
 global GAUSS_ITERATION
 GAUSS_ITERATION = 30
+global MEAN
+global STD
+MEAN = (-4.2677-4.2683-4.2679)/3.0
+STD = (0.141+0.1393+0.1410)/3
+
+
+def add_image_id_to_pool(id: str, filename="pooling_data.json"):
+    """id: image name, e.g: GEMS_IMG__2010_MAR__12__HA122541__F8HB4A50_24"""
+    with open(filename, 'r+') as f:
+        dic = json.load(f)
+        dic["ids"].append(id)
+    with open(filename, 'w') as file:
+        json.dump(dic, file)
+
+
+def delete_image_id_from_pool(id: str, filename="pooling_data.json"):
+    """id: image name, e.g: GEMS_IMG__2010_MAR__12__HA122541__F8HB4A50_24"""
+    with open(filename, 'r+') as f:
+        dic = json.load(f)
+        dic["ids"].remove(id)
+    with open(filename, 'w') as file:
+        json.dump(dic, file)
+
+
+def get_pool_data(filename="pooling_data.json"):
+    """return a list of image names (image id)"""
+    with open(filename, 'r+') as f:
+        dic = json.load(f)
+        return dic["ids"]
+
+
+def satisfy_acquisition_func(img_ece):
+    """
+    acquisition function: to select image for the next training phase.
+    If img_ece satisfies the constraint then the image is chosen.
+    """
+    val = img_ece
+    if val >= MEAN + STD:
+        return True
+    return False
 
 
 
@@ -59,12 +100,13 @@ def train_net(
     net.load_state_dict(
         torch.load(ckpt_path, map_location=device)
     )
-    writer = SummaryWriter(comment=f'_{net.__class__.__name__}_ece_one32nd_training_set')
+    writer = SummaryWriter(comment=f'_{net.__class__.__name__}_ece_one32nd')
 
     logging.info(f'Model loaded from {ckpt_path}')
-    batch_size = 4
+    batch_size = 64
 
-    dataset = BasicDataset(dir_img, dir_mask, True)
+    pool_data = get_pool_data()
+    dataset = RestrictedDataset(dir_img, dir_mask, pool_data, True)
     pool_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True)
 
     # data_test = BasicDataset(imgs_dir=dir_img_test, masks_dir=dir_mask_test, train=False, scale=img_scale)
@@ -78,11 +120,13 @@ def train_net(
     # test_score_dice, test_score_iou = eval_net(net, test_loader, n_classes, device)
     # print(f"TEST iou = {test_score_iou}, dice = {test_score_dice} ")
     std = []
+    imgs_id = []
+    count = 0
     for epoch in range(epochs):
         net.eval()
         epoch_loss = 0
         n_pool = len(dataset)
-        with tqdm(total=n_pool, desc='ECE calculating', unit='batch', leave=False) as pbar:
+        with tqdm(total=n_pool, desc='STD calculating', unit='batch', leave=False) as pbar:
             for ind, batch in enumerate(tqdm(pool_loader)):
                 imgs, true_masks = batch['image'], batch['mask']
                 imgs = imgs.to(device=device, dtype=torch.float32)
@@ -104,29 +148,32 @@ def train_net(
                 grid = torchvision.utils.make_grid(mean_y_pred.unsqueeze(1))
                 writer.add_image('images', grid, ind)
                 _std = get_segmentation_mask_uncertainty(std_y_pred)
-                std.extend(_std)
+                _imgs_id = batch['id']
+                for i in range(batch_size):
+                    if i >= len(_std):
+                        continue
+                    std.extend(_std)
+                    imgs_id.extend(_imgs_id)
 
-    for ind, val in enumerate(std):
-        writer.add_scalar("std in pool - case one32nd data", val, ind)
+                is_selected = False
+                # TODO
+                # Using some constraint here to select data
+                # Acquisition functions
+                # for i in range(batch_size):
+                #     if i >= len(_std):
+                #         continue
+                #     if satisfy_acquisition_func(_std[i]):
+                #         add_image_id_to_pool(batch['id'][i], filename="data_one32nd.json")
+                #         count += 1
+                pbar.update()
 
-    writer.add_histogram("Histogram std corresponding", np.array(std), 1)
-    std = torch.cuda.FloatTensor(std)
-    mean = std.mean()
-    _std = std.std()
-    writer.add_scalar("Mean std", mean, 1)
-    writer.add_scalar("STD std", _std, 1)
-    print("Mean: ", mean)
-    print("std: ", _std)
 
-                # is_selected = False
-                # # TODO
-                # # Using some constraint here to select data
-                # # Acquisition functions
-                # if is_selected:
-                #     id = batch['id']
-                #     add_image_id_to_pool(id)
-                # pbar.update()
-
+    std, imgs_id = zip(*sorted(zip(std, imgs_id)))
+    print("length of std/imgs_id: ", len(std), len(imgs_id))
+    top_100img = imgs_id[-100:]
+    for i in top_100img:
+        add_image_id_to_pool(i, "data_one32nd_std.json")
+    print("Adding successfully!")
 
 def get_args():
     parser = argparse.ArgumentParser(description='Fetching dataset',

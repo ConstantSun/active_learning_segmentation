@@ -120,8 +120,49 @@ import torch
 # a = a.sum(1)
 # print("shape a: ", a.shape)
 
-std = [1,4,2,6,4,9]
-imgs_id = ["one", "four", "two", "six", "four2", "nine"]
-std, imgs_id = zip(*sorted(zip(std, imgs_id)))
-print(std, imgs_id)
-print(imgs_id[-3:])
+# std = [1,4,2,6,4,9]
+# imgs_id = ["one", "four", "two", "six", "four2", "nine"]
+# std, imgs_id = zip(*sorted(zip(std, imgs_id)))
+# print(std, imgs_id)
+# print(imgs_id[-3:])
+# a = torch.arange(0, 12).reshape(2,2, 3)
+# b = (torch.arange(0, 12) + 2).reshape(2,2,3)
+# print("a: ",a)
+# print("b: ",b)
+# print(a*b)
+li = []
+a = torch.arange(6).reshape(6,1)
+b = torch.arange(6).reshape(6,1) + 20
+
+li.extend(a)
+li.extend(b)
+
+# print(li)
+import time
+
+# l1 = ["mot_hai", "ba bon", "hahi", "32 r2jr", "fjiwef", "fawe", "564"]*1500 + ["rw"]*1000
+# l2 = ["mot_hai", "ba bon", "hahi", "32 r2jr"]*1500
+# t1 = time.time()
+# x = set(l1) - set(l2)
+# x = list(x)
+# t2 = time.time()
+# print("x..: ", x)
+# first = t2-t1
+# print("time: ", first)
+# t4 = time.time()
+# l3 = [x for x in l1 if x not in l2]
+# t3 = time.time()
+# print("time 2 : ", -t3 + t4)
+
+import torch
+
+entropy_list = []
+entropy_list.append(torch.rand(16))  # shape: ind, batch
+entropy_list.append(torch.rand(16))  # shape: ind, batch
+
+res = torch.stack(entropy_list, dim=0)
+print("line 164: ", res.shape)
+res = res.mean(dim=1)
+print("line 166: ", res.shape)
+
+

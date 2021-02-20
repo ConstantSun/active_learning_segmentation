@@ -77,3 +77,17 @@ std:  tensor(0.1414, device='cuda:0')
 
 Mean:  tensor(-4.2683, device='cuda:0')
 std:  tensor(0.1393, device='cuda:0')
+
+
+
+- train data: fetch data cho từng phase, mỗi phase sau khi training đều lưu best iou ckpt
+lưu lại test iou vào tfboard
+
+- Khi sửa các phương pháp: chú ý thay đường dẫn thư mục ckpt và đổi tên trong tfboard.
+
+
+19/2:
+- adding augment
+- visualize std/also other acquisition function after each phase to make a std histogram
+- trong file json khi khởi tạo 84 ảnh đầu tiên (1/32) lượng data training ban đầu : chứa khoảng ảnh của 5-6 bệnh nhân ( tức ko bị random
+ảnh của nhiều bệnh nhân ).
