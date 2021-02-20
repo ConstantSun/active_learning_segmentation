@@ -81,29 +81,14 @@ class RestrictedDataset(Dataset):
             f'Either no mask or multiple masks found for the ID {idx}: {mask_file}'
         assert len(img_file) == 1, \
             f'Either no image or multiple images found for the ID {idx}: {img_file}'
-        # mask = Image.open(mask_file[0])
-        # img = Image.open(img_file[0])
-        #
-        # assert img.size == mask.size, \
-        #     f'Image and mask {idx} should be the same size, but are {img.size} and {mask.size}'
-        #
-        # img = self.preprocess(img)
-        # mask = self.preprocess(mask)
-
         mask = Image.open(mask_file[0])
         img = Image.open(img_file[0])
-        img, mask = img.resize((256, 256)), mask.resize((256, 256))
+        
         assert img.size == mask.size, \
             f'Image and mask {idx} should be the same size, but are {img.size} and {mask.size}'
-
-        img_nd, mask = np.array(img), np.array(mask)
-
-        augmentation = strong_aug(p=0.6)
-        augmented = augmentation(image=img_nd, mask=mask)
-        a_img = augmented["image"]
-        a_mask = augmented["mask"]
-
-        a_img, a_mask = self.postprocess_augment(a_img), self.postprocess_augment(a_mask)
+        
+        img = self.preprocess(img)
+        mask = self.preprocess(mask)
 
         return {
             'image': torch.from_numpy(img).type(torch.FloatTensor),
